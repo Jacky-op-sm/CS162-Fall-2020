@@ -1,0 +1,162 @@
+3.3 The A-Z's of GDB
+
+a. Run GDB on the map executable.
+Gdb map
+
+b. Set a breakpoint at the beginning of the program’s execution.
+Break main
+
+c. Run the program until the breakpoint.
+Run
+
+d. What memory address does argv store?
+0x7fffffffe468
+
+e. Describe what’s located at that memory address. (What does argv point to?) 
+char**: a pointer to an array of char*.
+
+f. Step until you reach the first call to recur.
+Next * 3
+
+g. What is the memory address of the recur function?
+info address recur
+0x5555555546cd
+
+h. Step into the first call to recur.
+Step
+
+i. Step until you reach the if statement.
+Next or step/finish
+
+j. Switch into assembly view.
+layout asm
+
+k. Step over instructions until you reach the callq instruction.
+si := step one asm instruction
+ctrl+x+a := switch the layout
+
+l. What values are in all the registers? 
+rax            0x2	2
+rbx            0x0	0
+rcx            0x0	0
+rdx            0x0	0
+rsi            0x555555756340	93824994337600
+rdi            0x2	2
+rbp            0x7fffffffe350	0x7fffffffe350
+rsp            0x7fffffffe330	0x7fffffffe330
+r8             0x0	0
+r9             0x0	0
+r10            0x555555756010	93824994336784
+r11            0x246	582
+r12            0x555555554580	93824992232832
+r13            0x7fffffffe470	140737488348272
+r14            0x0	0
+r15            0x0	0
+rip            0x555555554702	0x555555554702 <recur+53>
+eflags         0x202	[ IF ]
+cs             0x33	51
+ss             0x2b	43
+
+m. Step into the callq instruction.
+si
+
+n. Switch back to C code mode.
+ctrl+x+a
+
+o. Now print out the current call stack. (Hint: what does the backtrace command do?)
+backtrace, bt or where
+
+#0  recur (i=21845) at recurse.c:3
+#1  0x0000555555554707 in recur (i=3) at recurse.c:9
+#2  0x00005555555546c6 in main (argc=1, argv=0x7fffffffe478)
+    at map.c:23
+
+p. Now set a breakpoint on the recur function which is only triggered when the argument is 0. 
+br recur 
+cond 1 i == 0
+
+q. Continue until the breakpoint is hit.
+c
+
+r. Print the call stack now.
+bt
+
+#0  recur (i=0) at recurse.c:5
+#1  0x0000555555554707 in recur (i=1) at recurse.c:9
+#2  0x0000555555554707 in recur (i=2) at recurse.c:9
+#3  0x0000555555554707 in recur (i=3) at recurse.c:9
+#4  0x00005555555546c6 in main (argc=1, argv=0x7fffffffe478)
+
+s. Now go up the call stack until you reach main. What was argc? 
+up or up + <num>
+print argc : $3 = 1
+
+Go up the stack (i.e. go to the line that called the function you are currently in). Optionally you can specify the number of frames you wish to go up.
+
+t. Now step until the return statement in recur.
+step / next
+
+u. Switch back into the assembly view.
+layout asm
+
+v. Which instructions correspond to the return 0 in C?
+mov $0x0, %eax
+
+w. Now switch back to the source layout. 
+ctrl+x+a
+
+x. Finish the remaining 3 function calls. 
+step / next
+
+z. Quit GDB.
+q / quit
+
+
+3.4 From Source Code to Executable
+There are 10 written questions for this section:
+
+1. Generate recurse.S and find which instruction(s)corresponds to the recursive call of recur(i-1).
+gcc -m32 -S -o recurse.S recurse.c
+call    recur
+
+2. What do the .text and .data sections contain?
+.text: the code for the main function
+.data: not so many stuff
+00000000 <stuff>:
+   0:   07                      pop    %es
+   1:   00 00                   add    %al,(%eax)
+
+
+3. What command do we use to view the symbols in an ELF file? (Hint: We can use objdump again, look at “man objdump” to find the right flag).
+objdump -D -t map.o
+
+4. What do the g, O, F, and *UND* flags mean?
+g := global 
+F := name of a function
+O := an object
+*UND* := if the section is referenced in the file being dumped, but not defined there.
+
+5. Where else can we find a symbol for recur? Which file is this in? Copy and paste the relevant portion of the symbol table.
+In the recurse.o file;
+00000000 g     F .text  00000052 recur
+
+6. Examine the symbol table of the entire map program now. What has changed?
+Now the recur symbol is not *UND* but can be found as 
+000005ad g     F .text  00000052              recur
+
+7. What segment(s)/section(s) contains recur (the function)? (The address of recur in objdump will not be exactly the same as what you saw in gdb. An optional stretch exercise is to think about why. See the Wikipedia article on relocation25 for a hint.)
+Disassembly of section .text:
+000005ad <recur>
+
+8. What segment(s)/section(s) contains global variables? Hint: look for the variables foo and stuff.
+section .data
+
+9. Do you see the stack segment anywhere? What about the heap? Explain.
+From the stackoverflow: https://stackoverflow.com/questions/35124088/no-stack-or-heap-when-doing-objdump
+
+Stack and heap are runtime concepts, which have no pre-baked segment in the executable. Since they are just scratch space used dynamically, there's no reason why they should be present in the executable; they are created automatically at process (heap) or thread (stack) creation.
+
+10. Based on the output of map, in which direction does the stack grow? Explain.
+Em... I don't know how to get the answer "based on the output of map", usually stack is growing downward, from high address to lower address, but I don't know where to look from to observe this fact.
+
+
