@@ -1,0 +1,38 @@
+
+1.Is the program’s output the same each time it is run? Why or why not?
+Nope. Based on the none-deterministic of the scheduler, any thread may run before other thread after being created.
+
+2.Based on the program’s output, do multiple threads share the same stack?
+Nope. Each thread has its own stack to execute the code.
+
+3.Based on the program’s output, do multiple threads have separate copies of global variables?
+Nope. They share the same global variables and the evidence is that each thread will increase the "common" and one thread will get the incremented "common" variable.
+
+4.Based on the program’s output, what is the value of void *threadid? How does this relate to the variable’s type (void *)?
+threadid = t that pass in the function call pthread_create. It's casting.
+
+
+5.Using the first command line argument, create a large number of threads in pthread. Do all threads run before the program exits? Why or why not?
+Yes. The main thread won't exit until all the threads it create exit.
+
+6.Brieŕy compare the performance of lwords and pwords when run on the Gutenberg dataset. How might you explain their relative performance?
+
+time ./lwords gutenberg/metamorphosis.txt gutenberg/alice.txt gutenberg/time.txt
+
+real	0m4.193s
+user	0m4.180s
+sys	0m0.005s
+
+time ./pwords gutenberg/metamorphosis.txt gutenberg/alice.txt gutenberg/time.txt
+real	0m2.592s
+user	0m4.609s
+sys	0m0.033s
+
+We can see that ./pwords runs relatively faster than ./lwords when dealing relatively large files.
+
+7. Under what circumstances would pwords perform better than lwords? Under what circumstances would lwords perform better than pwords? 
+It's related to the size of file, if file is relatively large, pwords will perform better than lwords.
+
+Is it possible to use multiple threads in a way that always performs better than lwords?
+Em... It's a bit hard to say? Overall the overhead for creating threads and waiting them to join is not that large, so I think overall pwords performs better than lwords, but if say always, I am not so sure. 
+
