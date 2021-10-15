@@ -119,6 +119,13 @@ int main(unused int argc, unused char* argv[]) {
   static char line[4096];
   int line_num = 0;
 
+  /* wait status for child */
+  int wstatus;
+
+  /* Set up path for Path Resolution */
+  char* PATH = "/usr/local/sbin/ /usr/local/bin/ /usr/sbin/ /usr/bin/ /sbin/ /bin/ /usr/games/ /usr/local/games/ /snap/bin/ /usr/local/go/bin/ /home/vagrant/.bin/ /home/vagrant/.fzf/bin/";
+  struct tokens* path_tks = tokenize(PATH);
+
   /* Please only print shell prompts when standard input is not a tty */
   if (shell_is_interactive)
     fprintf(stdout, "%d: ", line_num);
@@ -133,25 +140,51 @@ int main(unused int argc, unused char* argv[]) {
     if (fundex >= 0) {
       cmd_table[fundex].fun(tokens);
     } else {
-      /* REPLACE this to run commands as programs. */
-      char* cmd_fn = tokens_get_token(tokens, 0);
-      size_t tokens_nums = tokens_get_length(tokens);
-      char** cmd_argv = (char **) malloc(tokens_nums * sizeof(char *));
-      int wstatus;
-      for (int i = 0; i < tokens_nums; i++) {
-        cmd_argv[i] = tokens_get_token(tokens, i);
-      }
       pid_t child_pid = fork();
+
+      // Child process: execv the program
       if (child_pid == 0) {
-        if (execv(cmd_fn, cmd_argv) == -1) {
-          fprintf(stdout, "%s: No such file or directory\n", cmd_fn);
+        /* Set up funcs and argvs for execv */
+        char* cmd_fn = tokens_get_token(tokens, 0);
+        size_t tokens_nums = tokens_get_length(tokens);
+        char** cmd_argv = (char **) malloc(tokens_nums * sizeof(char *));
+
+        // Copy the argvs in tokens into cmd_argv
+        for (int i = 0; i < tokens_nums; i++) {
+          cmd_argv[i] = tokens_get_token(tokens, i);
         }
-        exit(0);
+
+        // Try the full pathname
+        if (execv(cmd_fn, cmd_argv) != -1) {
+          /* Clean up memory */
+          tokens_destroy(tokens);
+          tokens_destroy(path_tks);
+          free(cmd_argv);
+          exit(0);
+        }
+        
+        // Try the default path with prefix 
+        for (int i = 0; i < tokens_get_length(path_tks); i++) {
+          char* path = tokens_get_token(path_tks, i);
+
+          // append cmd_fn to each path in $PATH 
+          strcat(path, cmd_fn);
+
+          // update cmd_argv and then execv
+          cmd_argv[0] = path;
+          if (execv(path, cmd_argv) != -1) {
+            /* Clean up memory */
+            tokens_destroy(tokens);
+            tokens_destroy(path_tks);
+            free(cmd_argv);
+            exit(0);
+          }
+        }
+        fprintf(stdout, "%s: No such file or directory\n", cmd_fn);
       } else {
         // Questionmark: busy waiting?
         while ((waitpid(-1, &wstatus, 0)) > 0);
-        free(cmd_argv);
-      }
+        }
     }
 
     if (shell_is_interactive)
@@ -162,5 +195,6 @@ int main(unused int argc, unused char* argv[]) {
     tokens_destroy(tokens);
   }
 
+  tokens_destroy(path_tks);
   return 0;
 }
