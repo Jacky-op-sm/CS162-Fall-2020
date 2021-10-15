@@ -134,7 +134,24 @@ int main(unused int argc, unused char* argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      char* cmd_fn = tokens_get_token(tokens, 0);
+      size_t tokens_nums = tokens_get_length(tokens);
+      char** cmd_argv = (char **) malloc(tokens_nums * sizeof(char *));
+      int wstatus;
+      for (int i = 0; i < tokens_nums; i++) {
+        cmd_argv[i] = tokens_get_token(tokens, i);
+      }
+      pid_t child_pid = fork();
+      if (child_pid == 0) {
+        if (execv(cmd_fn, cmd_argv) == -1) {
+          fprintf(stdout, "%s: No such file or directory\n", cmd_fn);
+        }
+        exit(0);
+      } else {
+        // Questionmark: busy waiting?
+        while ((waitpid(-1, &wstatus, 0)) > 0);
+        free(cmd_argv);
+      }
     }
 
     if (shell_is_interactive)
