@@ -147,11 +147,45 @@ int main(unused int argc, unused char* argv[]) {
         /* Set up funcs and argvs for execv */
         char* cmd_fn = tokens_get_token(tokens, 0);
         size_t tokens_nums = tokens_get_length(tokens);
-        char** cmd_argv = (char **) malloc(tokens_nums * sizeof(char *));
+        /* Huge mistake here!!!: debug me for 30 min but just find out a
+         * simple mistake: malloc -> calloc, the latter one gives the default NULL
+         * value  */
+        char** cmd_argv = (char **) calloc(tokens_nums, sizeof(char *));
 
+        /* Redirection index */
+        int input_red_ind = -1;
+        int output_red_ind = -1;
+        /* Redirection file descriptor */
+        int in_rediction = -1;
+        int out_rediction = -1;
+
+        int arg_index = 0;
         // Copy the argvs in tokens into cmd_argv
         for (int i = 0; i < tokens_nums; i++) {
-          cmd_argv[i] = tokens_get_token(tokens, i);
+          char* item = tokens_get_token(tokens, i);
+          /* Check redirection */
+          if (strcmp(item, "<") == 0) {
+            input_red_ind = i;
+          } else if (strcmp(item, ">") == 0) {
+            output_red_ind = i;
+          }
+           else if (input_red_ind != -1 && i == (input_red_ind + 1)) {
+            in_rediction = open(item, O_RDONLY);
+            dup2(in_rediction, 0);
+            close(in_rediction);
+          } else if (output_red_ind != -1 && i == (output_red_ind + 1)) {
+            /* Create the file desc fisrt if not exist and then open. 
+             * Reference: https://stackoverflow.com/questions/9874002/how-to-create-a-file-only-if-it-doesnt-exist
+             */
+
+            //out_rediction = open(item, O_WRONLY);
+            out_rediction = open(item, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+            dup2(out_rediction, 1);
+            close(out_rediction);
+          } 
+            else {
+            cmd_argv[arg_index++] = item;
+          }
         }
 
         // Try the full pathname
